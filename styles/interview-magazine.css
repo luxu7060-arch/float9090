@@ -1,0 +1,513 @@
+/* Glassmorphism Redesign for Interview Magazine App */
+
+.interview-app .font-display {
+  font-family: 'Bodoni Moda', 'Noto Serif SC', serif;
+  font-feature-settings: "lnum";
+  font-optical-sizing: auto;
+}
+
+.interview-app .font-serif {
+  font-family: 'EB Garamond', 'Noto Serif SC', serif;
+}
+
+.interview-app .font-cn {
+  font-family: 'Noto Serif SC', serif;
+}
+
+.interview-app .font-ui {
+  font-family: 'Inter', sans-serif;
+}
+
+.interview-app .font-black {
+  font-weight: 900;
+}
+
+.interview-app {
+  --interview-safe-top: var(--page-header-safe-top, 48px);
+  --interview-head-height: var(--page-header-content-height, 42px);
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  color:  rgba(74, 42, 68, 0.95);
+  font-family: 'Inter', 'Noto Serif SC', sans-serif;
+  background-color:  #FAF5FA;
+}
+
+/* Base text styles */
+.interview-small-caps {
+  font-family: 'Inter', 'Noto Serif SC', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  font-size: calc(9px*var(--app-text-scale,1));
+  font-weight: 500;
+  color:  rgba(74, 42, 68, 0.8);
+}
+
+.interview-glass-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.interview-glass-bg img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  filter: blur(14px) brightness(1.12) saturate(110%) !important;
+  opacity: 0.32 !important; /* 降低背景图透明度，让人物肖像成为唯美轻柔的杂志底纹 */
+  transform: scale(1.08) !important;
+}
+
+.interview-glass-bg .overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, rgba(255, 248, 253, 0.3) 0%, rgba(250, 240, 248, 0.75) 100%);
+}
+
+.interview-content {
+  position: relative;
+  z-index: 10;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Glass Panels */
+.interview-glass-panel {
+  background:  rgba(196, 150, 190, 0.05);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border:  1px solid rgba(199, 178, 199, 0.12);
+  border-radius: 24px;
+  box-shadow:  0 8px 32px rgba(196, 150, 190, 0.16);
+}
+
+.interview-glass-panel-hover:hover {
+  background:  rgba(196, 150, 190, 0.07);
+  border:  1px solid rgba(199, 178, 199, 0.22);
+}
+
+/* Glass Inputs */
+.interview-glass-input {
+  background:  rgba(196, 150, 190, 0.05);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border:  1px solid rgba(199, 178, 199, 0.15);
+  border-radius: 9999px;
+  color:  rgba(74, 42, 68, 0.95);
+  transition: all 0.3s ease;
+}
+
+.interview-glass-input:focus {
+  outline: none;
+  background:  rgba(196, 150, 190, 0.1);
+  border-color:  rgba(199, 178, 199, 0.38);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+.interview-glass-input::placeholder {
+  color:  rgba(74, 42, 68, 0.48);
+}
+
+/* Scroll areas */
+.interview-scroll {
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.interview-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* Buttons */
+.interview-icon-btn {
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color:  rgba(74, 42, 68, 0.95);
+  border-radius: 50%;
+  transition: background 0.2s, color 0.2s;
+}
+
+.interview-icon-btn:hover {
+  background:  rgba(196, 150, 190, 0.12);
+  color:  rgba(74, 42, 68, 0.95);
+}
+
+.interview-primary-btn {
+  background:  rgba(196, 150, 190, 0.12);
+  backdrop-filter: blur(10px);
+  border:  1px solid rgba(199, 178, 199, 0.3);
+  color:  rgba(74, 42, 68, 0.95);
+  border-radius: 9999px;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  font-family: 'Inter', sans-serif;
+  font-size: calc(13px*var(--app-text-scale,1));
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  transition: all 0.3s;
+}
+
+.interview-primary-btn:active {
+  transform: scale(0.98);
+}
+
+.interview-primary-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Layout Utilities */
+.interview-header {
+  position: relative;
+  height: var(--interview-head-height);
+  margin-top: var(--interview-safe-top);
+  padding: 1px 20px;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom:  1px solid rgba(199, 178, 199, 0.1);
+}
+
+.interview-header::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  height: var(--interview-safe-top);
+  background: inherit;
+  pointer-events: none;
+}
+
+.interview-bottom-bar {
+  padding: 20px 24px max(24px, env(safe-area-inset-bottom));
+  background:  linear-gradient(to top, rgba(245, 240, 245, 0.8) 0%, rgba(245, 240, 245, 0.5) 100%);
+}
+
+/* Animations */
+.fade-in {
+  animation: fadeIn 0.4s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.interview-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.interview-pulse-glow {
+  animation: pulseGlow 2s infinite alternate;
+}
+
+@keyframes pulseGlow {
+  from { box-shadow: 0 0 10px rgba(255, 255, 255, 0.1); }
+  to { box-shadow: 0 0 20px rgba(255, 255, 255, 0.3); }
+}
+
+/* Typing Indicator */
+.interview-typing span i {
+  display: inline-block;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.6);
+  margin-right: 4px;
+  animation: typingBounce 1.4s infinite ease-in-out both;
+}
+
+.interview-typing span i:nth-child(1) { animation-delay: -0.32s; }
+.interview-typing span i:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes typingBounce {
+  0%, 80%, 100% { transform: scale(0); }
+  40% { transform: scale(1); }
+}
+
+/* Modal Scrims */
+.interview-modal-scrim {
+  position: absolute;
+  inset: 0;
+  background:  rgba(250, 245, 250, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 50;
+}
+
+.interview-drawer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(85%, 340px);
+  background:  rgba(250, 245, 250, 0.6);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-left:  1px solid rgba(199, 178, 199, 0.15);
+  z-index: 60;
+  animation: drawerSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+}
+
+@keyframes drawerSlideIn {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+
+
+/* ========================================================
+   Light Candy Mode Overrides for Interview Magazine (在场)
+   ======================================================== */
+.interview-app {
+  background: #FAF2F8 !important;
+  color: #4A2A44 !important;
+}
+
+/* Force background layer to soft light candy gradient */
+.interview-glass-bg {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 0 !important;
+  background: linear-gradient(135deg, #FFF9FD 0%, #FAF2F8 50%, #F5EDF9 100%) !important;
+  overflow: hidden !important;
+}
+
+.interview-glass-bg > div:not(.overlay) {
+  background: linear-gradient(135deg, #FFF9FD 0%, #FAF2F8 50%, #F5EDF9 100%) !important;
+}
+
+/* 覆盖层：半透明乳白高光纱，彻底提亮背景，让深色文字根根分明清晰可读 */
+.interview-glass-bg .overlay {
+  position: absolute !important;
+  inset: 0 !important;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.45) 0%, rgba(255, 250, 254, 0.75) 100%) !important;
+  backdrop-filter: blur(6px) !important;
+  -webkit-backdrop-filter: blur(6px) !important;
+}
+
+/* All text styles forced to legible berry purple ink */
+.interview-app h1,
+.interview-app h2,
+.interview-app h3,
+.interview-app .font-display,
+.interview-app .font-black {
+  color: #4A2A44 !important;
+  text-shadow: none !important;
+}
+
+.interview-app .font-cn,
+.interview-app .font-serif {
+  color: #7B5675 !important;
+}
+
+.interview-app .interview-small-caps,
+.interview-app [class*="text-white"] {
+  color: #4A2A44 !important;
+}
+
+.interview-app [class*="text-white/40"],
+.interview-app [class*="text-white/50"],
+.interview-app [class*="text-white/60"] {
+  color: #8D6B88 !important;
+}
+
+.interview-app [class*="text-white/20"],
+.interview-app [class*="text-white/30"] {
+  color: #A98FA4 !important;
+}
+
+/* Dividing line */
+.interview-app [class*="bg-white/20"],
+.interview-app span.w-10 {
+  background-color: #D8CCD7 !important;
+}
+
+/* Glass panel cards */
+.interview-glass-panel {
+  background: rgba(255, 255, 255, 0.88) !important;
+  border: 1px solid rgba(226, 214, 226, 0.85) !important;
+  box-shadow: 0 8px 24px rgba(196, 150, 190, 0.12) !important;
+}
+
+.interview-glass-panel [class*="text-white/40"],
+.interview-glass-panel .font-serif {
+  color: #8D6B88 !important;
+}
+
+/* Floating round button (Plus / Mic / Actions) */
+.interview-app button.rounded-full[class*="bg-white"],
+.interview-app .w-14.h-14.rounded-full {
+  background: linear-gradient(135deg, #FF9EC7, #C79BFF) !important;
+  color: #FFFFFF !important;
+  border: none !important;
+  box-shadow: 0 4px 16px rgba(255, 158, 199, 0.45) !important;
+}
+
+.interview-app .w-14.h-14.rounded-full svg {
+  color: #FFFFFF !important;
+  stroke: #FFFFFF !important;
+}
+
+.interview-header {
+  border-bottom: 1px solid rgba(226, 214, 226, 0.6) !important;
+}
+
+.interview-header button {
+  color: #4A2A44 !important;
+}
+
+/* 采访录制界面底部操作栏：彻底清除黑漆漆的渐变阴影，换成通透高雅的浅粉白奶油渐变 */
+.interview-app footer.absolute.bottom-0,
+.interview-app footer[class*="from-black"] {
+  background: linear-gradient(to top, rgba(255, 248, 253, 0.96) 0%, rgba(255, 248, 253, 0.8) 65%, transparent 100%) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+}
+
+/* 输入框：纯净奶白晶透圆角胶囊 */
+.interview-app footer .interview-glass-input {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border: 1.2px solid rgba(226, 214, 226, 0.9) !important;
+  box-shadow: 0 4px 16px rgba(199, 155, 190, 0.12) !important;
+}
+
+.interview-app footer textarea {
+  color: #4A2A44 !important;
+}
+
+.interview-app footer textarea::placeholder {
+  color: #A98FA4 !important;
+}
+
+/* 发送按钮：糖果粉紫渐变小圆纽扣 */
+.interview-app footer button.rounded-full[class*="w-10"] {
+  background: linear-gradient(135deg, #FF9EC7, #C79BFF) !important;
+  color: #FFFFFF !important;
+  border: none !important;
+  box-shadow: 0 3px 10px rgba(255, 158, 199, 0.35) !important;
+}
+
+.interview-app footer button.rounded-full[class*="w-10"] svg {
+  color: #FFFFFF !important;
+  stroke: #FFFFFF !important;
+}
+
+/* 提前结稿 / 保留实录按钮文字颜色高亮清晰 */
+.interview-app footer button[class*="font-mono"],
+.interview-app footer .text-mono {
+  color: #7B5675 !important;
+  text-shadow: none !important;
+}
+
+.interview-app footer button[class*="font-mono"]:hover {
+  color: #4A2A44 !important;
+}
+
+/* ========================================================
+   结稿成刊全文阅读页（ArticleScreen）：彻底驱散深黑，换上法式纯净优雅画报
+   ======================================================== */
+.interview-app div[class*="bg-[#0a0a0a]"],
+.interview-app .z-40.inset-0,
+.interview-app div.z-40.flex-col {
+  background-color: #FAF5FA !important;
+  background: linear-gradient(135deg, #FFF9FD 0%, #FAF2F8 50%, #F5EDF9 100%) !important;
+  color: #4A2A44 !important;
+}
+
+/* 顶部导航栏（ISSUE NO.01） */
+.interview-app div[class*="bg-[#0a0a0a]"] header,
+.interview-app .z-40.inset-0 header,
+.interview-app .z-40 header {
+  background: rgba(255, 255, 255, 0.75) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border-bottom: 1px solid rgba(226, 214, 226, 0.6) !important;
+}
+
+.interview-app div[class*="bg-[#0a0a0a]"] header button,
+.interview-app .z-40.inset-0 header button,
+.interview-app .z-40 header button {
+  color: #7B5675 !important;
+}
+
+.interview-app div[class*="bg-[#0a0a0a]"] header span,
+.interview-app .z-40.inset-0 header span,
+.interview-app .z-40 header span {
+  color: #9E8099 !important;
+}
+
+/* 标题与副标题（深渊的共谋） */
+.interview-app div[class*="bg-[#0a0a0a]"] h1,
+.interview-app .z-40.inset-0 h1 {
+  color: #4A2A44 !important;
+  text-shadow: none !important;
+}
+
+.interview-app div[class*="bg-[#0a0a0a]"] p.font-serif,
+.interview-app .z-40.inset-0 p.font-serif {
+  color: #7B5675 !important;
+}
+
+/* 文章正文段落文字：优雅浆果黑紫墨水，对比鲜明清晰易读 */
+.interview-app div[class*="bg-[#0a0a0a]"] .font-cn,
+.interview-app .z-40.inset-0 .font-cn,
+.interview-app div[class*="bg-[#0a0a0a]"] article p,
+.interview-app .z-40.inset-0 article p {
+  color: #4A2A44 !important;
+  line-height: 2 !important;
+}
+
+/* 首字下沉大写字母（Drop Cap） */
+.interview-app article p:first-child::first-letter,
+.interview-app article p[class*="first-letter"]::first-letter {
+  color: #6C3864 !important;
+}
+
+/* 金句引语卡片（Pull Quote） */
+.interview-app div[class*="bg-[#0a0a0a]"] [class*="border-y"],
+.interview-app .z-40.inset-0 [class*="border-y"] {
+  border-color: rgba(210, 180, 205, 0.35) !important;
+}
+
+.interview-app div[class*="bg-[#0a0a0a]"] [class*="border-y"] span.font-serif,
+.interview-app .z-40.inset-0 [class*="border-y"] span.font-serif {
+  background-color: #FAF2F8 !important;
+  color: #E2BCFF !important;
+}
+
+/* Q&A 问答卡片：柔糯白瓷卡片，告别黑底 */
+.interview-app div[class*="bg-[#0a0a0a]"] .interview-glass-panel,
+.interview-app .z-40.inset-0 .interview-glass-panel {
+  background: rgba(255, 255, 255, 0.9) !important;
+  border: 1px solid rgba(226, 214, 226, 0.9) !important;
+  box-shadow: 0 4px 16px rgba(199, 155, 190, 0.10) !important;
+}
+
+.interview-app div[class*="bg-[#0a0a0a]"] .interview-glass-panel p,
+.interview-app .z-40.inset-0 .interview-glass-panel p {
+  color: #4A2A44 !important;
+}
+
+.interview-app div[class*="bg-[#0a0a0a]"] .interview-glass-panel span.font-display,
+.interview-app .z-40.inset-0 .interview-glass-panel span.font-display {
+  color: #7B5675 !important;
+}
