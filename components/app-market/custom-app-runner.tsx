@@ -192,6 +192,231 @@ html, body { min-height: 100%; }
   setInterval(enforceUserFont, 1000);
 })();
 </script>
+<style id="ai-phone-light-guard">
+  :root, html, body { color-scheme: light only !important; }
+  html, body { background-color: #FBF8FF !important; color: #2B2433 !important; }
+  input, textarea, select, button, option, progress, meter { color-scheme: light only !important; }
+  ::-webkit-scrollbar { width: 6px !important; height: 6px !important; background: transparent !important; }
+  ::-webkit-scrollbar-track { background: transparent !important; }
+  ::-webkit-scrollbar-thumb { background: rgba(124, 108, 146, 0.16) !important; border-radius: 999px !important; }
+  html { scrollbar-width: thin; scrollbar-color: rgba(124, 108, 146, 0.16) transparent; }
+  /* 属性驱动兜底层：APP 重渲染把内联样式盖掉时，这几条 !important 依然生效 */
+  html body [data-lg-dark] {
+    background-color: var(--lg-bg, #FBF8FF) !important;
+    background-image: none !important;
+  }
+  html body [data-lg-light-text] { color: var(--lg-fg, #2B2433) !important; }
+  html body [data-lg-light-border] { border-color: rgba(124, 108, 146, 0.32) !important; }
+  html body [data-lg-kill-pseudo]::before,
+  html body [data-lg-kill-pseudo]::after {
+    background: none !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+  }
+</style>
+<script>
+(function(){
+  // ── 强制浅色守卫 v2 ──
+  // 相比 v1：① 不再因为祖先有图片背景就整棵子树跳过
+  //          ② 同时用「内联 !important」+「属性 + CSS !important」双保险，抗 APP 重渲染
+  //          ③ 击杀深色 ::before / ::after 遮罩
+  //          ④ 递归进 Shadow DOM
+  //          ⑤ 遍历预算 2600 → 8000（大的 APP 也翻得完）
+  // 想临时关掉：localStorage.setItem('ai-phone:force-light', 'off') 再重开 APP
+  var KEY = 'ai-phone:force-light';
+  try { if (localStorage.getItem(KEY) === 'off') return; } catch (e) {}
+  var DARK_LIMIT = 0.34;
+  var TEXT_LIGHT_LIMIT = 0.66;
+  var INK = '43, 36, 51';
+  var BUDGET = 5000;
+  var observer = null;
+  var scheduled = false;
+  var budget = 0;
+
+  function parseColor(value) {
+    if (!value) return null;
+    var m = /^rgba?\\(([^)]+)\\)$/.exec(String(value).trim());
+    if (!m) return null;
+    var parts = m[1].split(/[,\\s\\/]+/).filter(function (s) { return s !== ''; });
+    if (parts.length < 3) return null;
+    var r = parseFloat(parts[0]), g = parseFloat(parts[1]), b = parseFloat(parts[2]);
+    var a = parts.length > 3 ? parseFloat(parts[3]) : 1;
+    if (isNaN(r) || isNaN(g) || isNaN(b)) return null;
+    if (isNaN(a)) a = 1;
+    return { r: r, g: g, b: b, a: a };
+  }
+  function luminance(c) {
+    return (0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b) / 255;
+  }
+  function tint(c) {
+    var mx = Math.max(c.r, c.g, c.b) || 1;
+    var k = 0.10;
+    var r = Math.round(251 * (1 - k) + k * (255 * c.r / mx));
+    var g = Math.round(248 * (1 - k) + k * (255 * c.g / mx));
+    var b = Math.round(255 * (1 - k) + k * (255 * c.b / mx));
+    return 'rgb(' + r + ', ' + g + ', ' + b + ')';
+  }
+  function gradientIsDark(image, textIsLight) {
+    var colors = String(image).match(/rgba?\\([^)]+\\)/g) || [];
+    if (!colors.length) return textIsLight === true;  // 解析不出(oklch 等)时用文字颜色兜底判断
+    for (var i = 0; i < colors.length; i++) {
+      var c = parseColor(colors[i]);
+      if (c && c.a > 0.2 && luminance(c) > DARK_LIMIT) return false;
+    }
+    return true;
+  }
+  function setStyle(el, prop, value) {
+    try {
+      if (el.style.getPropertyValue(prop) === value && el.style.getPropertyPriority(prop) === 'important') return;
+      el.style.setProperty(prop, value, 'important');
+    } catch (e) {}
+  }
+  function setVar(el, name, value) {
+    try { el.style.setProperty(name, value); } catch (e) {}
+  }
+  function fixOne(el, cs, hasUrlBg) {
+    var bg = parseColor(cs.backgroundColor);
+    var image = cs.backgroundImage || 'none';
+    var fg = parseColor(cs.color);
+    var textIsLight = !!fg && luminance(fg) > TEXT_LIGHT_LIMIT;
+
+    // 图片/照片背景：只保护它自己，不再连累整棵子树
+    if (hasUrlBg) return;
+
+    if (bg && bg.a > 0.05 && luminance(bg) < DARK_LIMIT) {
+      var next;
+      if (bg.a < 0.95) {
+        next = 'rgba(251, 248, 255, ' + Math.min(0.94, bg.a + 0.55).toFixed(2) + ')';
+      } else {
+        next = tint(bg);
+      }
+      el.setAttribute('data-lg-dark', '');
+      setVar(el, '--lg-bg', next);
+      setStyle(el, 'background-color', next);
+    } else if (image !== 'none' && gradientIsDark(image, textIsLight)) {
+      el.setAttribute('data-lg-dark', '');
+      setVar(el, '--lg-bg', '#FBF8FF');
+      setStyle(el, 'background-image', 'none');
+      setStyle(el, 'background-color', '#FBF8FF');
+    }
+
+    if (textIsLight) {
+      el.setAttribute('data-lg-light-text', '');
+      setVar(el, '--lg-fg', 'rgb(' + INK + ')');
+      setStyle(el, 'color', 'rgb(' + INK + ')');
+    }
+
+    var widths = (parseFloat(cs.borderTopWidth) || 0) + (parseFloat(cs.borderLeftWidth) || 0)
+      + (parseFloat(cs.borderRightWidth) || 0) + (parseFloat(cs.borderBottomWidth) || 0);
+    if (widths > 0) {
+      var sides = ['border-top-color', 'border-right-color', 'border-bottom-color', 'border-left-color'];
+      var camel = ['borderTopColor', 'borderRightColor', 'borderBottomColor', 'borderLeftColor'];
+      for (var i = 0; i < sides.length; i++) {
+        var bc = parseColor(cs[camel[i]]);
+        if (bc && bc.a > 0.25 && luminance(bc) > TEXT_LIGHT_LIMIT) {
+          el.setAttribute('data-lg-light-border', '');
+          setStyle(el, sides[i], 'rgba(124, 108, 146, 0.32)');
+        }
+      }
+    }
+
+    var shadow = cs.boxShadow || 'none';
+    if (shadow !== 'none' && /rgba?\\(\\s*0,\\s*0,\\s*0/.test(shadow)) {
+      setStyle(el, 'box-shadow', '0 6px 18px rgba(96, 78, 116, 0.12)');
+    }
+  }
+  // 击杀铺满屏幕的深色伪元素遮罩（很多"玻璃风"APP 的深色其实是 ::before 画的）
+  function checkPseudo(el, cs) {
+    var pos = cs.position;
+    var isRoot = el === document.body || el === document.documentElement;
+    if (!isRoot && pos !== 'fixed' && pos !== 'absolute') return;
+    var names = ['::before', '::after'];
+    for (var i = 0; i < names.length; i++) {
+      var ps;
+      try { ps = getComputedStyle(el, names[i]); } catch (e) { continue; }
+      if (!ps) continue;
+      var content = ps.content;
+      if (!content || content === 'none' || content === 'normal') continue;
+      var pbg = parseColor(ps.backgroundColor);
+      var pimg = ps.backgroundImage || 'none';
+      var dark = (pbg && pbg.a > 0.1 && luminance(pbg) < DARK_LIMIT)
+        || (pimg !== 'none' && pimg.indexOf('url(') < 0 && gradientIsDark(pimg, false))
+        || (ps.backdropFilter && ps.backdropFilter !== 'none' && ps.backdropFilter.indexOf('blur') >= 0);
+      if (dark) { el.setAttribute('data-lg-kill-pseudo', ''); return; }
+    }
+  }
+  function walk(el) {
+    if (!el || el.nodeType !== 1) return;
+    if (budget > BUDGET) return;
+    budget++;
+    var tag = String(el.tagName);
+    var upper = tag.toUpperCase();
+    if (upper === 'SCRIPT' || upper === 'STYLE' || upper === 'LINK' || upper === 'META'
+      || upper === 'HEAD' || upper === 'TITLE' || upper === 'BASE') return;
+    if (upper === 'IMG' || upper === 'VIDEO' || upper === 'CANVAS' || upper === 'IFRAME'
+      || upper === 'OBJECT' || upper === 'EMBED' || tag.toLowerCase() === 'svg') return;
+    if (el.getAttribute('data-light-guard') === 'off') return;
+    if (el.hasAttribute('data-lg-dark') && el.hasAttribute('data-lg-light-text')) {
+      // 已经翻过的元素不再重复算样式，省 CPU
+      var kids0 = el.children;
+      for (var k0 = 0; k0 < kids0.length; k0++) walk(kids0[k0]);
+      return;
+    }
+    var cs = null;
+    try { cs = getComputedStyle(el); } catch (e) { cs = null; }
+    if (cs) {
+      var image = cs.backgroundImage || 'none';
+      fixOne(el, cs, image.indexOf('url(') >= 0);
+      checkPseudo(el, cs);
+    }
+    var children = el.children;
+    for (var i = 0; i < children.length; i++) walk(children[i]);
+    var root = el.shadowRoot;
+    if (root && root.children) {
+      for (var j = 0; j < root.children.length; j++) walk(root.children[j]);
+    }
+  }
+  function run() {
+    if (observer) observer.disconnect();
+    budget = 0;
+    try {
+      var root = document.body || document.documentElement;
+      if (root) walk(root);
+      var metas = document.getElementsByName('theme-color');
+      for (var i = 0; i < metas.length; i++) metas[i].setAttribute('content', '#FBF8FF');
+      // 把自己的样式表推到 head 末尾，压过 APP 后写入的样式
+      var mine = document.getElementById('ai-phone-light-guard');
+      if (mine && document.head && document.head.lastElementChild !== mine) {
+        document.head.appendChild(mine);
+      }
+    } catch (e) {}
+    if (observer) {
+      try {
+        observer.observe(document.documentElement, {
+          childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style', 'hidden']
+        });
+      } catch (e) {}
+    }
+  }
+  function schedule() {
+    if (scheduled) return;
+    scheduled = true;
+    setTimeout(function () { scheduled = false; run(); }, 320);
+  }
+  try {
+    observer = new MutationObserver(schedule);
+  } catch (e) { observer = null; }
+  run();
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', run);
+  }
+  window.addEventListener('load', run);
+  var delays = [200, 600, 1200, 2500, 4500];
+  for (var d = 0; d < delays.length; d++) setTimeout(run, delays[d]);
+})();
+</script>
 <script>
 (function(){
   var frameId = ${JSON.stringify(frameId)};

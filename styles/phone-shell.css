@@ -1917,3 +1917,29 @@ html body .dock .dock-item {
   display: none !important;
   content: none !important;
 }
+
+/* 🛡️ 兜底保险：一个图标槽位里只允许存在一层图标 */
+.icon-glyph-box:has(> .icon-skin-layer) > img,
+.icon-glyph-box:has(> .icon-skin-layer) > svg,
+.folder-mini:has(> .icon-skin-layer) > img,
+.folder-mini:has(> .icon-skin-layer) > svg {
+  display: none !important;
+}
+
+/* ══════════════════════════════════════════════════════════
+   ✨ 去掉图标下方那层「若隐若现的黑色方块」
+   原因：贴纸 PNG 的 alpha 轮廓本身≈圆角方形，drop-shadow 沿轮廓
+        投影 + 模糊后，就糊成一个黑色圆角方块。
+        img 的是内联样式，皮肤层的是 !important，这里统一用
+        !important 压掉（CSS 的 !important 优先级高于行内样式）。
+   ══════════════════════════════════════════════════════════ */
+.icon-glyph-box img,
+.icon-glyph-box svg,
+.cat-app-sticker-glyph,
+.icon-skin-layer,
+.phone-shell .icon-skin-layer,
+.folder-mini img,
+.folder-mini .folder-mini-glyph {
+  filter: none !important;
+  -webkit-filter: none !important;
+}

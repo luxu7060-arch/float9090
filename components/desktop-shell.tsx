@@ -4643,20 +4643,12 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgb
                                         style={{ backgroundImage: `url("${iconImageUrl}")` }}
                                       />
                                     ) : null}
-                                    {builtinIconId ? (
+                                                                        {iconImageUrl ? null : builtinIconId ? (
                                       <IconGlyph
                                         id={builtinIconId}
-                                        className={
-                                          builtinIconId === "music"
-                                            ? iconSkinUrl
-                                              ? "icon-glyph icon-glyph-music icon-glyph-hidden"
-                                              : "icon-glyph icon-glyph-music"
-                                            : iconSkinUrl
-                                              ? "icon-glyph icon-glyph-hidden"
-                                              : "icon-glyph"
-                                        }
+                                        className={builtinIconId === "music" ? "icon-glyph icon-glyph-music" : "icon-glyph"}
                                       />
-                                    ) : customIconUrl ? null : (
+                                    ) : (
                                       <CustomAppGlyph seed={customApp?.name || icon.label} className="icon-glyph" />
                                     )}
                                     {badgeCount > 0 ? (
