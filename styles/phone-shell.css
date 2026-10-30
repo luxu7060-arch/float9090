@@ -1995,3 +1995,28 @@ html body .dock .dock-item {
     margin-top: 0;
   }
 }
+
+/* ===== 导演室：剧情页内覆盖层 ===== */
+.director-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  background: #fbf8ff;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ══════════════════════════════════════════════════════════
+   状态栏是纯装饰层：不接收指针事件
+   ──────────────────────────────────────────────────────────
+   状态栏是 position:absolute、top:12px、高 36px、z-index:10 的透明层，
+   里面只有时间/信号/电量/灵动岛，全都不需要点。
+   但默认它会吃掉整条 12~48px 的点击——自定义 APP 如果把自己的顶栏画在
+   y=0（没吃 --ai-phone-app-safe-top），那条带上的返回/图标按钮就只剩
+   边缘一条缝能点。给它 pointer-events:none，点击直接穿透到下面的 APP。
+   ══════════════════════════════════════════════════════════ */
+.phone-status-bar,
+.phone-status-bar > * {
+  pointer-events: none;
+}

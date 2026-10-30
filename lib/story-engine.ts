@@ -10,6 +10,8 @@ import {
 } from "./settings-storage";
 import type { ApiConfig, PresetConfig, RegexConfig, WorldBookConfig } from "./settings-types";
 import { assemblePromptPayload, type LLMMessage } from "./llm-prompt-assembler";
+import { loadEnabledDirectorNotesForCharacter } from "./director-storage";
+import { buildNarrationDirective } from "./story-narration";
 import { previewMessagesForApi, sendLLMRequestPreferStream, ChatEngineError } from "./chat-engine";
 import { loadMemoryConfig } from "./memory-storage";
 import { retrieveCoreMemoriesForPrompt, retrieveMemoriesForPrompt } from "./memory-service";
@@ -202,7 +204,7 @@ async function buildStoryPromptMessages(
 
   const now = new Date();
 
-  return assemblePromptPayload({
+  const llmMessages = await assemblePromptPayload({
     character,
     history: truncatedHistory,
     preset,
@@ -218,6 +220,29 @@ async function buildStoryPromptMessages(
     recentBlocks,
     unifiedRecentItems,
   });
+
+  // 导演室里勾选「注入」的笔记，追加到系统段末尾（默认不注入）
+  const directorNotes = await loadEnabledDirectorNotesForCharacter(characterId).catch(() => []);
+  if (directorNotes.length > 0) {
+    const block = ["【导演笔记（本片已定的设定，与本场剧情同等优先）】", ...directorNotes.map((note) => `- ${note}`)].join("\n");
+    const systemIndex = llmMessages.findIndex((message) => message.role === "system");
+    if (systemIndex >= 0) {
+      llmMessages[systemIndex] = {
+        ...llmMessages[systemIndex],
+        content: `${llmMessages[systemIndex].content}\n\n${block}`,
+      };
+    } else {
+      llmMessages.unshift({ role: "system", content: block });
+    }
+  }
+
+  // 叙述人称：第一人称对手戏（全局设置），放最后一条系统消息，优先级最高
+  const narrationDirective = buildNarrationDirective();
+  if (narrationDirective) {
+    llmMessages.push({ role: "system", content: narrationDirective });
+  }
+
+  return llmMessages;
 }
 
 export async function previewStoryPromptPayload(

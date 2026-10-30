@@ -27,6 +27,7 @@ const CAT_ICON_MAP: Partial<Record<IconId, string>> = {
   xiaohongshu: "/icons/cat_redbook.png",
   dwelling: "/icons/cat_dwelling.png",
   story: "/icons/cat_story.png",
+  director: "/icons/cat_story.png",
   interview_magazine: "/icons/cat_diary.png",
   moments: "/icons/cat_camera.png",
   worldbuilder: "/icons/sample_black_cat.png",

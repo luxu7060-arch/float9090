@@ -4,6 +4,7 @@ import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useStat
 import { createPortal } from "react-dom";
 import {
   BookOpenIcon,
+  FilmIcon,
   PaintBrushIcon,
   PaperAirplaneIcon,
   StopIcon,
@@ -64,9 +65,12 @@ import { SessionCustomCSS } from "@/components/ui/session-custom-css";
 import { STORY_CSS_EXAMPLE } from "@/lib/css-examples";
 import { applyEditOutputRegex } from "@/lib/llm-prompt-assembler";
 import { MacroEngine } from "@/lib/macro-engine";
+import { loadStoryNarrationMode, saveStoryNarrationMode, type StoryNarrationMode } from "@/lib/story-narration";
 
 type StoryAppProps = {
   onClose: () => void;
+  /** 剧情页顶栏的导演室入口（只放一个小图标，不写文字） */
+  onOpenDirector?: () => void;
 };
 
 type StoryGenerationRun = {
@@ -270,7 +274,7 @@ const StoryComposer = memo(function StoryComposer({
   );
 });
 
-export function StoryApp({ onClose }: StoryAppProps) {
+export function StoryApp({ onClose, onOpenDirector }: StoryAppProps) {
   const [ready, setReady] = useState(false);
   const [, setStorageVersion] = useState(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -280,6 +284,7 @@ export function StoryApp({ onClose }: StoryAppProps) {
   const [visibleMessageCount, setVisibleMessageCount] = useState(STORY_INITIAL_LOAD);
   const [composerAppendRequest, setComposerAppendRequest] = useState<StoryComposerAppendRequest | null>(null);
   const [customCssDraft, setCustomCssDraft] = useState("");
+  const [narrationMode, setNarrationMode] = useState<StoryNarrationMode>("first");
   const [foldTagsDraft, setFoldTagsDraft] = useState("");
   const [contextExcludedTagsDraft, setContextExcludedTagsDraft] = useState("");
   // 生成状态按会话记录：避免在 A 会话生成时切到 B 会话也显示"正在生成"
@@ -356,6 +361,7 @@ export function StoryApp({ onClose }: StoryAppProps) {
         setContextExcludedTagsDraft(session.contextExcludedTags ?? "think,thinking");
         setStorageVersion((value) => value + 1);
       }
+      setNarrationMode(loadStoryNarrationMode());
       setReady(true);
     });
   }, []);
@@ -949,6 +955,45 @@ export function StoryApp({ onClose }: StoryAppProps) {
           <div className="story-drawer-eyebrow">显示选项</div>
           <div style={{ padding: "10px 0", borderBottom: "1px solid var(--c-story-drawer-border, rgba(124, 104, 68, 0.08))" }}>
             <label style={{ fontSize: "calc(13px*var(--app-text-scale,1))", color: "var(--c-story-sub, rgba(95, 82, 61, 0.72))", display: "block", marginBottom: 6 }}>
+              叙述人称
+            </label>
+            <div style={{ display: "flex", gap: 8 }}>
+              {([
+                { id: "first" as StoryNarrationMode, label: "第一人称" },
+                { id: "third" as StoryNarrationMode, label: "第三人称" },
+              ]).map((option) => {
+                const active = narrationMode === option.id;
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => {
+                      setNarrationMode(option.id);
+                      saveStoryNarrationMode(option.id);
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: "8px 0",
+                      cursor: "pointer",
+                      border: "none",
+                      boxShadow: active ? "inset 0 0 0 1px var(--c-story-sub, rgba(95,82,61,0.72))" : "inset 0 1px 3px rgba(0,0,0,0.06)",
+                      background: active ? "var(--c-story-css-box-bg, rgba(255,251,246,0.88))" : "transparent",
+                      color: active ? "var(--c-story-text, #4b4335)" : "var(--c-story-sub, rgba(95,82,61,0.72))",
+                      fontSize: "calc(12.5px*var(--app-text-scale,1))",
+                      fontFamily: "inherit",
+                    }}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+            <div style={{ fontSize: "calc(11px*var(--app-text-scale,1))", marginTop: 4, color: "var(--c-story-sub, rgba(95, 82, 61, 0.72))" }}>
+              第一人称＝对面直接对着你演（自称“我”、称你“你”），对所有角色生效
+            </div>
+          </div>
+          <div style={{ padding: "10px 0", borderBottom: "1px solid var(--c-story-drawer-border, rgba(124, 104, 68, 0.08))" }}>
+            <label style={{ fontSize: "calc(13px*var(--app-text-scale,1))", color: "var(--c-story-sub, rgba(95, 82, 61, 0.72))", display: "block", marginBottom: 6 }}>
               折叠标签
             </label>
             <input
@@ -1025,9 +1070,16 @@ export function StoryApp({ onClose }: StoryAppProps) {
               <button className="story-top-btn" onClick={onClose} aria-label="关闭剧情模式">
                 <SolidBackIcon size={16} />
               </button>
+              {/* 右侧多了一个图标按钮，左侧补等宽留白，保证 STORY 标题仍然正中 */}
+              {onOpenDirector ? <span aria-hidden="true" style={{ width: 88, flexShrink: 0 }} /> : null}
             </div>
             <div className="story-header-center">Story</div>
             <div className="story-header-right" style={{ gap: 8 }}>
+              {onOpenDirector ? (
+                <button className="story-top-btn" onClick={onOpenDirector} aria-label="导演室">
+                  <FilmIcon width={16} height={16} />
+                </button>
+              ) : null}
               <button className="story-top-btn" onClick={() => setCssModalOpen(true)} aria-label="页面样式">
                 <PaintBrushIcon width={16} height={16} />
               </button>

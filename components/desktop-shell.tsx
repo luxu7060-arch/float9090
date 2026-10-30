@@ -26,6 +26,7 @@ import { REALITY_BRIDGE_APP_EVENT_NAME, REALITY_BRIDGE_DATA_EVENT } from "@/lib/
 import { DiaryApp } from "@/components/diary/diary-app";
 import { XiaohongshuApp } from "@/components/xiaohongshu/xiaohongshu-app";
 import { StoryApp } from "@/components/story/story-app";
+import { DirectorApp } from "@/components/director/director-app";
 import { VnApp } from "@/components/vn/vn-app";
 import ReadingApp from "@/components/reading/reading-app";
 import MapApp from "@/components/map/map-app";
@@ -113,6 +114,7 @@ import {
   getDesktopPageNumber,
   loadDockLayout,
   normalizeDock,
+  seedNewBuiltinIcons,
   writeDockLayout,
   loadDesktopFolders,
   writeDesktopFolders,
@@ -1046,6 +1048,7 @@ export function DesktopShell({ initialThemeProfile, initialThemeAssets }: Deskto
   }, []);
   useAndroidCaretKeyboardLift();
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
+  const [storyDirectorOpen, setStoryDirectorOpen] = useState(false);
   const [layout, setLayout] = useState<DesktopLayout>(DEFAULT_LAYOUT);
   // Dock is an ordered icon-id list (max DOCK_MAX), kept disjoint from `layout`.
   const [dock, setDock] = useState<DesktopIconId[]>(DOCK_DEFAULT);
@@ -1483,11 +1486,13 @@ export function DesktopShell({ initialThemeProfile, initialThemeAssets }: Deskto
         try {
           const normalized = normalizeLayout(JSON.parse(rawV2), hydratedWidgets, dockIds, hydratedFolders);
           const sane = sanitizeDesktopFolders(hydratedFolders, normalized, hydratedDock, hydratedWidgets);
+          // 新上线的内置 App（导演室）给老布局补一个空位，只补一次
+          const seededLayout = seedNewBuiltinIcons(sane.layout, hydratedWidgets, hydratedDock);
           setFolders(sane.folders);
-          setLayout(sane.layout);
-          if (sane.changed) {
+          setLayout(seededLayout);
+          if (sane.changed || seededLayout !== sane.layout) {
             writeDesktopFolders(sane.folders);
-            kvSet(ICON_LAYOUT_STORAGE_KEY, JSON.stringify(sane.layout));
+            kvSet(ICON_LAYOUT_STORAGE_KEY, JSON.stringify(seededLayout));
           }
           setDesktopReady(true);
           return;
@@ -1508,7 +1513,7 @@ export function DesktopShell({ initialThemeProfile, initialThemeAssets }: Deskto
           return;
         } catch {}
       }
-      setLayout(createDefaultDesktopIconLayout(hydratedWidgets));
+      setLayout(seedNewBuiltinIcons(createDefaultDesktopIconLayout(hydratedWidgets), hydratedWidgets, hydratedDock));
       setDesktopReady(true);
     });
   }, []);
@@ -4060,7 +4065,23 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgb
     }
 
     if (activeApp === "story") {
-      return <StoryApp onClose={() => setActiveApp(null)} />;
+      return (
+        <>
+          <StoryApp
+            onClose={() => { setStoryDirectorOpen(false); setActiveApp(null); }}
+            onOpenDirector={() => setStoryDirectorOpen(true)}
+          />
+          {storyDirectorOpen ? (
+            <div className="director-overlay">
+              <DirectorApp onClose={() => setStoryDirectorOpen(false)} onNotice={setNotice} />
+            </div>
+          ) : null}
+        </>
+      );
+    }
+
+    if (activeApp === "director") {
+      return <DirectorApp onClose={() => setActiveApp(null)} onNotice={setNotice} />;
     }
 
     if (activeApp === "vnmode") {

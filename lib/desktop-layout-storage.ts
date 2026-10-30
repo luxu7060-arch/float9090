@@ -8,6 +8,8 @@ export const ICON_LAYOUT_STORAGE_KEY = "ai_phone_icon_layout_v2";
 export const ICON_LAYOUT_STORAGE_KEY_V1 = "ai_phone_icon_layout_v1";
 export const DOCK_LAYOUT_STORAGE_KEY = "ai_phone_dock_layout_v1";
 export const DESKTOP_FOLDERS_STORAGE_KEY = "ai_phone_desktop_folders_v1";
+/** 记录「已经自动补过位置」的内置图标，补过一次就不再补，避免用户删了又被塞回来 */
+export const BUILTIN_ICON_SEED_KEY = "ai_phone_builtin_icon_seed_v1";
 
 /** Max icons the dock can hold. Dragging a page icon in is rejected once full. */
 export const DOCK_MAX = 4;
@@ -16,6 +18,7 @@ registerKvMigration(ICON_LAYOUT_STORAGE_KEY);
 registerKvMigration(ICON_LAYOUT_STORAGE_KEY_V1);
 registerKvMigration(DOCK_LAYOUT_STORAGE_KEY);
 registerKvMigration(DESKTOP_FOLDERS_STORAGE_KEY);
+registerKvMigration(BUILTIN_ICON_SEED_KEY);
 
 export type DesktopPageKey = `page${number}`;
 
@@ -241,6 +244,82 @@ export type DesktopFolder = { name: string; icons: DesktopIconId[] };
 export type DesktopFolderMap = Record<string, DesktopFolder>;
 
 /** 校验并去重文件夹表：只保留已知/已安装的成员图标（文件夹不可嵌套） */
+/**
+ * 老用户桌面布局是存下来的，新增的内置图标不会自己出现。
+ * 这里给「新上线的内置图标」找一个空位补上（只补一次，用户删掉后不会再回来）。
+ */
+const BUILTIN_ICON_SEED_TARGETS: IconId[] = ["director"];
+
+export function seedNewBuiltinIcons(
+  layout: DesktopIconLayout,
+  widgets: WidgetInstance[] = [],
+  dock: DesktopIconId[] = []
+): DesktopIconLayout {
+  let seeded: string[] = [];
+  try {
+    const raw = kvGet(BUILTIN_ICON_SEED_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as unknown;
+      if (Array.isArray(parsed)) seeded = parsed.filter((id): id is string => typeof id === "string");
+    }
+  } catch {
+    seeded = [];
+  }
+
+  const present = new Set<string>(dock);
+  for (const icon of getDesktopIconLayoutItems(layout)) {
+    present.add(icon.id);
+  }
+
+  const pending = BUILTIN_ICON_SEED_TARGETS.filter((id) => !seeded.includes(id) && !present.has(id));
+  if (pending.length === 0) {
+    return layout;
+  }
+
+  const next = { ...layout } as DesktopIconLayout;
+  const newlySeeded: string[] = [];
+  const pageKeys = getDesktopPageKeys(next);
+  if (pageKeys.length === 0) {
+    return layout;
+  }
+
+  for (const id of pending) {
+    // 优先放在「剧情」那一页，挨着它
+    const hostPage = pageKeys.find((page) => (next[page] ?? []).some((item) => item.id === "story"));
+    const order = hostPage ? [hostPage, ...pageKeys.filter((page) => page !== hostPage)] : pageKeys;
+
+    for (const page of order) {
+      const items = next[page] ?? [];
+      const occupied = buildWidgetOccupancy(widgets, getDesktopPageNumber(page));
+      for (const item of items) {
+        if (item.row >= 1 && item.row <= GRID_ROWS && item.col >= 1 && item.col <= GRID_COLS) {
+          occupied[item.row - 1][item.col - 1] = true;
+        }
+      }
+      let spot: { row: number; col: number } | null = null;
+      // 从下往上找空位，贴着已有图标那一排往上走
+      for (let row = GRID_ROWS - 1; row >= 0 && !spot; row -= 1) {
+        for (let col = 0; col < GRID_COLS && !spot; col += 1) {
+          if (!occupied[row][col]) spot = { row: row + 1, col: col + 1 };
+        }
+      }
+      if (spot) {
+        next[page] = [...items, { id, row: spot.row, col: spot.col }];
+        newlySeeded.push(id);
+        break;
+      }
+    }
+  }
+
+  if (newlySeeded.length === 0) {
+    return layout;
+  }
+  try {
+    kvSet(BUILTIN_ICON_SEED_KEY, JSON.stringify([...seeded, ...newlySeeded]));
+  } catch {}
+  return next;
+}
+
 export function normalizeDesktopFolders(raw: unknown): DesktopFolderMap {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
   const knownIcons = new Set<string>(Object.keys(ICONS));
