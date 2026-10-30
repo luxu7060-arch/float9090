@@ -25,6 +25,7 @@ import { CUSTOM_APPS_UPDATED_EVENT, loadInstalledCustomApps } from "@/lib/custom
 import { toCustomAppIconId, type InstalledCustomApp } from "@/lib/custom-app-types";
 import { PageShell } from "@/components/ui/page-shell";
 import { readPwaDisplayPreference, writePwaDisplayPreference } from "@/lib/pwa-display-mode";
+import { readForceLightEnabled, writeForceLightEnabled } from "@/lib/force-light";
 import {
   GRID_COLS,
   GRID_ROWS,
@@ -205,6 +206,8 @@ export function PhoneThemeApp({
   const [showThemeTransfer, setShowThemeTransfer] = useState(false);
   const [themeTransferBusy, setThemeTransferBusy] = useState(false);
   const [confirmThemeReset, setConfirmThemeReset] = useState(false);
+  // 外来 APP 强制浅色总开关（存 localStorage，守卫脚本读同一个键）
+  const [forceLight, setForceLight] = useState<boolean>(() => readForceLightEnabled());
   const importFileRef = useRef<HTMLInputElement>(null);
   const statusBarTop = Number(draft.cssOverrides["--status-bar-top"]?.replace("px", "") || "12");
   const islandHidden = draft.cssOverrides["--status-island-visibility"] === "hidden";
@@ -268,6 +271,17 @@ export function PhoneThemeApp({
       setThemeTransferBusy(false);
     }
   }, [onApply, onDesktopThemeChange, onDraftChange, onNotice]);
+
+  const handleToggleForceLight = useCallback(() => {
+    const next = !forceLight;
+    setForceLight(next);
+    writeForceLightEnabled(next);
+    onNotice(
+      next
+        ? "已开启：外来 APP 统一使用浅色背景（重开 APP 后生效）"
+        : "已关闭：外来 APP 恢复作者原本的配色（重开 APP 后生效）"
+    );
+  }, [forceLight, onNotice]);
 
   function handleBack() {
     if (section === "menu") {
@@ -362,6 +376,37 @@ export function PhoneThemeApp({
                     </span>
                   </button>
                 ))}
+                {/* 外来 APP 强制浅色：总开关（守卫脚本读同一个 localStorage 键） */}
+                <div className="menu-item cursor-pointer" onClick={handleToggleForceLight}>
+                  <span className="card-icon card-icon-glass"><GlassIcon name="palette" /></span>
+                  <span className="menu-label appearance-menu-item-label">
+                    强制外来 APP 浅色
+                    <span className="block ts-11 font-normal" style={{ color: "var(--c-icon)", marginTop: 2 }}>
+                      {forceLight ? "所有外来 APP 统一浅色底" : "恢复 APP 作者原本配色"}
+                    </span>
+                  </span>
+                  <label
+                    className="block w-10 h-[22px] cursor-pointer relative shrink-0 ml-auto"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={forceLight}
+                      onChange={handleToggleForceLight}
+                      className="w-full h-full rounded-[11px] m-0 outline-none"
+                      style={{
+                        appearance: "none",
+                        backgroundColor: forceLight ? "var(--c-success)" : "var(--c-page-body-bg)",
+                        transition: "0.2s",
+                      }}
+                    />
+                    <div className="absolute w-[18px] h-[18px] bg-white rounded-full top-[2px] pointer-events-none" style={{
+                      left: forceLight ? 20 : 2,
+                      transition: "0.2s",
+                      boxShadow: "0 2px 4px rgba(0,0,0,0.15)",
+                    }} />
+                  </label>
+                </div>
               </div>
             </div>
 
@@ -985,6 +1030,8 @@ function TextScalePage({
         {"文字缩放：以当前设计字号为 100%，范围 75% ~ 150%。"}
         <br />
         {"字体：上传 .ttf / .otf / .woff2 文件。"}
+        <br />
+        {"强制范围：本机界面 + 全部外来 APP（含 APP 内部样式里写死的字体），外来 APP 重开一次后生效。"}
       </p>
     </div>
   );

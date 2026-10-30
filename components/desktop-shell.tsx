@@ -2190,7 +2190,10 @@ export function DesktopShell({ initialThemeProfile, initialThemeAssets }: Deskto
     if (!meta) return null;
     const skinId = activeIconSkins[memberId];
     const skinUrl = skinId ? themeAssets[skinId] ?? null : null;
-    const customUrl = meta.customApp ? meta.customApp.iconDataUrl ?? null : null;
+    // 「图标风格 = 跟随全局」时不使用 App 自己的封面，回落到全局黑猫贴纸
+    const customUrl = meta.customApp && customAppIconStyles[meta.customApp.id] !== "global"
+      ? meta.customApp.iconDataUrl ?? null
+      : null;
     const imageUrl = skinUrl || customUrl;
     return (
       <span key={memberId} className="folder-mini" aria-hidden>
@@ -4618,7 +4621,10 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgb
                               const builtinIconId = customApp ? null : icon.id as IconId;
                               const iconSkinId = activeIconSkins[iconId];
                               const iconSkinUrl = iconSkinId ? themeAssets[iconSkinId] ?? null : null;
-                              const customIconUrl = customApp ? customApp.iconDataUrl ?? null : null;
+                              // 「图标风格 = 跟随全局」时不使用 App 自己的封面
+                              const customIconUrl = customApp && customAppIconStyles[customApp.id] !== "global"
+                                ? customApp.iconDataUrl ?? null
+                                : null;
                               // 优先使用主题设置里自定义的图标皮肤，其次回退到应用内置图标
                               const iconImageUrl = iconSkinUrl || customIconUrl;
                               const hasImageIcon = Boolean(iconImageUrl);
@@ -4643,7 +4649,7 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgb
                                         style={{ backgroundImage: `url("${iconImageUrl}")` }}
                                       />
                                     ) : null}
-                                                                        {iconImageUrl ? null : builtinIconId ? (
+                                    {iconImageUrl ? null : builtinIconId ? (
                                       <IconGlyph
                                         id={builtinIconId}
                                         className={builtinIconId === "music" ? "icon-glyph icon-glyph-music" : "icon-glyph"}
@@ -4767,7 +4773,10 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgb
                     const builtinIconId = customApp ? null : (icon.id as IconId);
                     const iconSkinId = activeIconSkins[iconId];
                     const iconSkinUrl = iconSkinId ? themeAssets[iconSkinId] ?? null : null;
-                    const customIconUrl = customApp ? customApp.iconDataUrl ?? null : null;
+                    // 「图标风格 = 跟随全局」时不使用 App 自己的封面
+                    const customIconUrl = customApp && customAppIconStyles[customApp.id] !== "global"
+                      ? customApp.iconDataUrl ?? null
+                      : null;
                     const iconImageUrl = iconSkinUrl || customIconUrl;
                     const hasImageIcon = Boolean(iconImageUrl);
                     const isDragging = dragItem?.type === "icon" && dragItem.id === iconId;
@@ -4792,20 +4801,12 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgb
                           {iconImageUrl ? (
                             <span className="icon-skin-layer" style={{ backgroundImage: `url("${iconImageUrl}")` }} />
                           ) : null}
-                          {builtinIconId ? (
+                          {iconImageUrl ? null : builtinIconId ? (
                             <IconGlyph
                               id={builtinIconId}
-                              className={
-                                builtinIconId === "music"
-                                  ? iconSkinUrl
-                                    ? "icon-glyph icon-glyph-music icon-glyph-hidden"
-                                    : "icon-glyph icon-glyph-music"
-                                  : iconSkinUrl
-                                    ? "icon-glyph icon-glyph-hidden"
-                                    : "icon-glyph"
-                              }
+                              className={builtinIconId === "music" ? "icon-glyph icon-glyph-music" : "icon-glyph"}
                             />
-                          ) : customIconUrl ? null : (
+                          ) : (
                             <CustomAppGlyph seed={customApp?.name || icon.label} className="icon-glyph" />
                           )}
                         </span>
@@ -4973,7 +4974,10 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgb
                               const memberBuiltinId = memberCustomApp ? null : meta.id as IconId;
                               const memberSkinId = activeIconSkins[memberId];
                               const memberSkinUrl = memberSkinId ? themeAssets[memberSkinId] ?? null : null;
-                              const memberCustomUrl = memberCustomApp ? memberCustomApp.iconDataUrl ?? null : null;
+                              // 「图标风格 = 跟随全局」时不使用 App 自己的封面
+                              const memberCustomUrl = memberCustomApp && customAppIconStyles[memberCustomApp.id] !== "global"
+                                ? memberCustomApp.iconDataUrl ?? null
+                                : null;
                               const memberImageUrl = memberSkinUrl || memberCustomUrl;
                               const memberBadge = memberCustomApp ? customAppBadges[memberCustomApp.id] ?? 0 : 0;
                               return (
@@ -4995,12 +4999,12 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgb
                                     {memberImageUrl ? (
                                       <span className="icon-skin-layer" style={{ backgroundImage: `url("${memberImageUrl}")` }} />
                                     ) : null}
-                                    {memberBuiltinId ? (
+                                    {memberImageUrl ? null : memberBuiltinId ? (
                                       <IconGlyph
                                         id={memberBuiltinId}
-                                        className={memberSkinUrl ? "icon-glyph icon-glyph-hidden" : "icon-glyph"}
+                                        className="icon-glyph"
                                       />
-                                    ) : memberCustomUrl ? null : (
+                                    ) : (
                                       <CustomAppGlyph seed={memberCustomApp?.name || ""} className="icon-glyph" />
                                     )}
                                     {memberBadge > 0 ? (

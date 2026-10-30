@@ -16,6 +16,7 @@ import { registerCustomAppToolExecutor, type CustomAppToolExecutorPayload } from
 import { updateInstalledCustomAppFromMarket } from "@/lib/custom-app-market-update";
 import { loadCharacters } from "@/lib/character-storage";
 import { hydrateKvDb } from "@/lib/kv-db";
+import { getThemeAssetDataUrl, readThemeProfile } from "@/lib/theme-storage";
 import { ensureSettingsStorageHydrated } from "@/lib/settings-storage";
 import { getPwaHostedSafeArea, PWA_DISPLAY_MODE_CHANGED_EVENT } from "@/lib/pwa-display-mode";
 import {
@@ -113,6 +114,23 @@ type BridgeResult = unknown;
 
 const CUSTOM_APP_BACKGROUND_RUNNER_TIMEOUT_MS = 5 * 60_000;
 
+// ── 用户上传字体──
+// 族名写死为 AIVirtualPhoneUserFont，与宿主 desktop-shell 里的上传字体同名，
+// 这样「本机界面」和「外来 APP」用的是同一份字体。
+const USER_FONT_FAMILY = "AIVirtualPhoneUserFont";
+const USER_FONT_FACE_STYLE_ID = "ai-phone-user-font-face";
+const USER_FONT_VAR_STYLE_ID = "ai-phone-user-font-var";
+
+/** 从 dataURL 的 mime 嗅探出 @font-face 的 format()。认不出就返回 null（不写 format，交给浏览器嗅） */
+function describeFontFormat(dataUrl: string): string | null {
+  const head = dataUrl.slice(0, 96).toLowerCase();
+  if (head.includes("woff2")) return "woff2";
+  if (head.includes("woff")) return "woff";
+  if (head.includes("opentype") || head.includes("otf")) return "opentype";
+  if (head.includes("truetype") || head.includes("ttf")) return "truetype";
+  return null;
+}
+
 function normalizeAssetRef(value: string): string {
   return value.replace(/\\/g, "/").replace(/^\.?\//, "").replace(/^\/+/, "");
 }
@@ -155,6 +173,7 @@ ${body}
   font-display: swap;
 }
 :root {
+  --ai-phone-user-font: "MyUserFont";
   --ai-phone-app-safe-top: ${embedded ? "0px" : "88px"};
   --ai-phone-app-safe-bottom: ${embedded ? "0px" : "24px"};
   --ai-phone-app-safe-left: ${embedded ? "0px" : "16px"};
@@ -162,33 +181,95 @@ ${body}
 }
 html, body { min-height: 100%; }
 *, *::before, *::after, body, div, p, span, h1, h2, h3, h4, h5, h6, input, textarea, select, button {
-  font-family: "MyUserFont", sans-serif !important;
+  font-family: var(--ai-phone-user-font, "MyUserFont"), sans-serif !important;
   -webkit-tap-highlight-color: transparent;
   box-sizing: border-box;
 }
 </style>
 <script>
 (function(){
-  // ── 深度拦截：确保无论第三方作者后面加载什么 CSS，最后生效的永远是用户的字体 ──
+  // ── 字体强制守卫 v2：权限拉满 ──
+  // 相比旧版：
+  //   ① 不再写死 'MyUserFont'，改读 :root 的 --ai-phone-user-font。宿主在 iframe 加载后
+  //     把用户上传的字体注入成 @font-face 并改这个变量（见 #ai-phone-user-font-face）。
+  //   ② 选择器扩到 *，连 pre / code / a / li / td 一起压。
+  //   ③ 对「内联 !important」再补一刀：直接 setProperty(..., 'important')，
+  //     比任何样式表都硬。
+  //   ④ 递归进 Shadow DOM（自定义元素封装的 APP 也跑不掉）。
+  var STACK = 'var(--ai-phone-user-font, "MyUserFont"), sans-serif';
+  var SELECTOR = 'html, body, *, *::before, *::after, p, span, div, h1, h2, h3, h4, h5, h6, input, textarea, select, button, option, label, a, li, td, th, pre, code, blockquote, small, strong, em, b, i, u, s, figcaption, time, mark';
+  function patchInline(el) {
+    if (!el || el.nodeType !== 1 || !el.getAttribute) return;
+    var raw = el.getAttribute('style');
+    // 普通内联样式本来就被下面那张样式表的 !important 压住，
+    // 只有「内联 + !important」才需要助攻；不是就直接跳过，省性能。
+    if (!raw || raw.indexOf('font-family') === -1 || raw.indexOf('!important') === -1) return;
+    if (el.style.getPropertyValue('font-family') === STACK) return;
+    el.style.setProperty('font-family', STACK, 'important');
+  }
+  function patchTree(root, budget) {
+    if (!root || !root.querySelectorAll || budget <= 0) return;
+    var nodes = root.querySelectorAll('*');
+    for (var i = 0; i < nodes.length; i++) {
+      budget--;
+      if (budget <= 0) return;
+      var el = nodes[i];
+      patchInline(el);
+      if (el.shadowRoot && el.shadowRoot.querySelectorAll) {
+        var shade = el.shadowRoot;
+        if (!shade.getElementById('ai-phone-shadow-font-guard')) {
+          var sheet = document.createElement('style');
+          sheet.id = 'ai-phone-shadow-font-guard';
+          sheet.textContent = SELECTOR + ' { font-family: ' + STACK + ' !important; }';
+          shade.appendChild(sheet);
+        }
+        patchTree(shade, budget);
+      }
+    }
+  }
   function enforceUserFont() {
     var id = "ai-phone-final-font-guard";
     var el = document.getElementById(id);
     if (!el) {
       el = document.createElement("style");
       el.id = id;
-      el.textContent = "html, body, *, *::before, *::after, div, p, span, h1, h2, h3, h4, h5, h6, input, textarea, select, button { font-family: 'MyUserFont', sans-serif !important; }";
+      el.textContent = SELECTOR + ' { font-family: ' + STACK + ' !important; }';
     }
-    // 永远将自身推到 <head> 或 <body> 的最末尾，压制所有作者自定义样式
+    // 永远将自身推到 <head> / <body> 的最末尾，压制所有作者自定义样式
     var parent = document.head || document.documentElement || document.body;
     if (parent && parent.lastElementChild !== el) {
       parent.appendChild(el);
     }
   }
+  function patchAll() {
+    try { patchTree(document.documentElement, 4000); } catch (e) {}
+  }
   enforceUserFont();
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", enforceUserFont);
+    document.addEventListener("DOMContentLoaded", function () { enforceUserFont(); patchAll(); });
   }
-  window.addEventListener("load", enforceUserFont);
+  window.addEventListener("load", function () { enforceUserFont(); patchAll(); });
+  setTimeout(patchAll, 1200);
+  try {
+    var mo = new MutationObserver(function (records) {
+      var restyle = false;
+      for (var i = 0; i < records.length; i++) {
+        var r = records[i];
+        if (r.type === 'attributes') { patchInline(r.target); continue; }
+        if (r.addedNodes) {
+          for (var j = 0; j < r.addedNodes.length; j++) {
+            var node = r.addedNodes[j];
+            if (!node || node.nodeType !== 1) continue;
+            patchInline(node);
+            if (node.tagName === 'STYLE' || node.tagName === 'LINK') restyle = true;
+          }
+        }
+      }
+      // 作者后抛的 <style> 会被尾部补一刀，保证它的优先级超不过我们
+      if (restyle) enforceUserFont();
+    });
+    mo.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['style'] });
+  } catch (e) {}
   setInterval(enforceUserFont, 1000);
 })();
 </script>
@@ -1097,6 +1178,98 @@ export function CustomAppRunner({
   const isBackgroundRunner = Boolean(backgroundEvent || backgroundTool);
   const effectiveEmbedded = embedded || isBackgroundRunner;
   const srcDoc = useMemo(() => createCustomAppSrcDoc(app, frameId, launchContext, effectiveEmbedded), [app, frameId, launchContext, effectiveEmbedded]);
+
+  // ── 把用户上传的字体推进自定义 APP 的 iframe ──
+  // 以前 iframe 里写死了 @font-face 指向 /fonts/myfont.TTF（仓库自带字体），
+  // 所以「上传字体」对外来 APP 完全无效——作者写什么就显示什么。
+  // 现在：父页面从主题资源库读出上传字体 → 在 iframe 文档里补一张 @font-face
+  // → 把 :root 的 --ai-phone-user-font 指向它（iframe 里的字体守卫用的就是这个变量）。
+  // 走 dataURL 而不是 blob URL：沙盒 iframe 里父页面创建的 blob 会加载失败。
+  const [userFontDataUrl, setUserFontDataUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        // 主题配置寄存在 kv-db 里，先 hydrate 一次再读，
+        // 否则冷启动时可能读到空表导致上传字体被忽略。
+        await hydrateKvDb();
+        const assetId = readThemeProfile().fontAssetId;
+        if (!assetId) {
+          return;
+        }
+        const dataUrl = await getThemeAssetDataUrl(assetId);
+        if (alive && dataUrl) {
+          setUserFontDataUrl(dataUrl);
+        }
+      } catch (error) {
+        console.warn("[UserFont] 读取上传字体失败:", error);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const userFontFaceCss = useMemo(() => {
+    if (!userFontDataUrl) {
+      return "";
+    }
+    const format = describeFontFormat(userFontDataUrl);
+    return `@font-face{font-family:"${USER_FONT_FAMILY}";src:url("${userFontDataUrl}")${format ? ` format("${format}")` : ""};font-weight:100 900;font-style:normal;font-display:swap;}`;
+  }, [userFontDataUrl]);
+
+  const applyUserFontToFrame = useCallback((css: string): boolean => {
+    const doc = iframeRef.current?.contentDocument;
+    const head = doc?.head ?? doc?.documentElement;
+    if (!doc || !head) {
+      return false;
+    }
+    let face = doc.getElementById(USER_FONT_FACE_STYLE_ID) as HTMLStyleElement | null;
+    if (!face) {
+      face = doc.createElement("style");
+      face.id = USER_FONT_FACE_STYLE_ID;
+      face.textContent = css;
+      head.appendChild(face);
+    } else if (face.textContent !== css) {
+      face.textContent = css;
+    }
+    let vars = doc.getElementById(USER_FONT_VAR_STYLE_ID) as HTMLStyleElement | null;
+    if (!vars) {
+      vars = doc.createElement("style");
+      vars.id = USER_FONT_VAR_STYLE_ID;
+      head.appendChild(vars);
+    }
+    const varCss = `:root { --ai-phone-user-font: "${USER_FONT_FAMILY}", "MyUserFont"; }`;
+    if (vars.textContent !== varCss) {
+      vars.textContent = varCss;
+    }
+    return true;
+  }, []);
+
+  useEffect(() => {
+    if (!userFontFaceCss) {
+      return;
+    }
+    let cancelled = false;
+    let tries = 0;
+    const tick = () => {
+      if (cancelled) {
+        return;
+      }
+      tries += 1;
+      if (applyUserFontToFrame(userFontFaceCss)) {
+        return;
+      }
+      if (tries < 80) {
+        window.setTimeout(tick, 100);
+      }
+    };
+    tick();
+    return () => {
+      cancelled = true;
+    };
+  }, [applyUserFontToFrame, userFontFaceCss, srcDoc]);
+
   const syncHostedSafeArea = useCallback(() => {
     const frame = iframeRef.current;
     if (!frame) return;
@@ -2273,7 +2446,14 @@ export function CustomAppRunner({
           className="custom-app-runner-frame"
           sandbox="allow-scripts allow-downloads allow-same-origin"
           allow="autoplay"
-          onLoad={syncHostedSafeArea}
+          onLoad={() => {
+            syncHostedSafeArea();
+            // srcDoc 这一次加载完成后再注入上传字体；
+            // 不能靠“iframe 一出现就注”：那时拿到的可能还是 about:blank 文档，注了也会被覆盖。
+            if (userFontFaceCss) {
+              applyUserFontToFrame(userFontFaceCss);
+            }
+          }}
           srcDoc={srcDoc}
         />
       ) : null}
