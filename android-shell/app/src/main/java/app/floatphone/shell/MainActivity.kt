@@ -333,14 +333,47 @@ class MainActivity : AppCompatActivity() {
         else -> emptyList()
     }
 
+    /**
+     * 真·沉浸全屏：隐藏状态栏 + 导航栏，向下滑动只「临时」呼出、随后自动收回。
+     *
+     * 为什么要反复调用：部分 ROM 在切后台回来、弹出输入法、用户从边缘滑出系统栏之后
+     * 不会自己收回去，表现就是"用着用着上面多出一条状态栏 / 页面被顶下去"。
+     * 所以 onResume 和每次重新获得焦点都重设一次。
+     */
+    private fun applyImmersiveMode() {
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        val controller = WindowCompat.getInsetsController(window, window.decorView)
+        controller.systemBarsBehavior =
+            androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        controller.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+        // 万一被 ROM 强制显示：用深色图标。本应用界面是浅色的，深色图标才看得清。
+        controller.isAppearanceLightStatusBars = true
+        controller.isAppearanceLightNavigationBars = true
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            // 画进刘海/挖孔区（对应 themes.xml 的 windowLayoutInDisplayCutoutMode）
+            window.attributes = window.attributes.apply {
+                layoutInDisplayCutoutMode =
+                    android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        applyImmersiveMode()
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        // 弹过键盘、切过后台、侧滑呼出过系统栏之后都会走到这里 —— 重新收一次
+        if (hasFocus) applyImmersiveMode()
+    }
+
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        WindowCompat.setDecorFitsSystemWindows(window, false)
         // 彻底隐藏安卓本机状态栏（时间/信号/电量）与底部导航栏，实现真沉浸全屏
-        val insetsController = WindowCompat.getInsetsController(window, window.decorView)
-        insetsController.systemBarsBehavior = androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-        insetsController.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+        applyImmersiveMode()
         // 音量键默认调媒体流：WebView 里的语音条/TTS 都走媒体流播放，
         // 不设的话短音频没在播时按键调的是铃声，用户感觉"音量键无效、声音巨大"
         volumeControlStream = AudioManager.STREAM_MUSIC

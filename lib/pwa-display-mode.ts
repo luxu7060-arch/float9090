@@ -58,6 +58,44 @@ export function shouldRequestPwaFullscreen(): boolean {
   return !/Edg/i.test(navigator.userAgent);
 }
 
+/** 是否粗指针设备（手机/平板）。横屏时视口宽度会超过 500px，所以不能再用宽度判断。 */
+export function isCoarsePointerDevice(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia("(hover: none) and (pointer: coarse)").matches;
+}
+
+/** 是否跑在自家的安卓壳（APK）里：壳本身就是原生全屏，网页再请求全屏没有意义。 */
+export function isShellWebView(): boolean {
+  if (typeof window === "undefined") return false;
+  const bridged = (window as Window & { AndroidShell?: unknown }).AndroidShell;
+  return Boolean(bridged) || /FloatShell\//.test(navigator.userAgent);
+}
+
+/** 把方向钉成竖屏。
+ *  Chrome / Edge / 三星 / QQ 等只在「全屏状态」下允许锁方向；
+ *  iOS Safari 与部分国产浏览器没有这个 API —— 调用会被 catch 掉，
+ *  由 styles/phone-shell.css 里的横屏旋转兜底。 */
+export async function lockPortraitOrientation(): Promise<void> {
+  if (typeof screen === "undefined") return;
+  const orientation = screen.orientation as (ScreenOrientation & { lock?: (orientation: string) => Promise<void> }) | undefined;
+  if (!orientation?.lock) return;
+  try {
+    await orientation.lock("portrait");
+  } catch {
+    /* 不允许锁（非全屏 / 浏览器不支持）——交给 CSS 兜底 */
+  }
+}
+
+/** 退出全屏时把方向锁解开，免得用户横着拿手机时系统一直顶着不转。 */
+export function unlockOrientation(): void {
+  if (typeof screen === "undefined") return;
+  try {
+    (screen.orientation as (ScreenOrientation & { unlock?: () => void }) | undefined)?.unlock?.();
+  } catch {
+    /* ignore */
+  }
+}
+
 export function getRuntimePwaDisplayMode(): RuntimePwaDisplayMode {
   if (typeof window === "undefined" || typeof document === "undefined") return "browser";
   if (document.fullscreenElement || window.matchMedia("(display-mode: fullscreen)").matches) {

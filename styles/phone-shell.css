@@ -1068,7 +1068,12 @@
 
 /* ── Mobile responsive ── */
 
-@media (max-width: 500px) and (hover: none) and (pointer: coarse) {
+/* 手机判定：不再只看宽度。横屏时视口宽度会超过 500px，旧写法会让手机在横屏
+   直接掉回桌面布局（外面一圈留白 + 中间一台小手机），看起来就像"竖屏给我横屏显示"。
+   现在补一条「粗指针 + 横屏 + 矮视口（手机横过来大概 360~430px 高）」，
+   平板横屏（768+）和桌面不受影响。 */
+@media (max-width: 500px) and (hover: none) and (pointer: coarse),
+       (hover: none) and (pointer: coarse) and (orientation: landscape) and (max-height: 500px) {
 
   /* 用户在设置里显式开启「显示系统状态栏」且运行时不在全屏时，控制器才会挂
      data-pwa-display-mode 标记（见 pwa-manifest-injector）：此时所有 App 共用系统
@@ -1942,4 +1947,51 @@ html body .dock .dock-item {
 .folder-mini .folder-mini-glyph {
   filter: none !important;
   -webkit-filter: none !important;
+}
+
+/* ══════════════════════════════════════════════════════════
+   横屏兜底：把竖屏界面转 90° 铺满横着的屏幕
+   为什么需要：iOS Safari 和不少国产浏览器根本不允许网页锁方向，
+   screen.orientation.lock() 会被直接拒绝。用户横着拿手机时，
+   要么整页按桌面布局摊开，要么 390×844 的界面被拉成 844×390。
+   这里在「粗指针 + 横屏 + 矮视口」三个条件同时成立时，把整个
+   .app-root 顺时针旋转 90°，并让设计画布的宽高跟着对调 ——
+   用户看到的永远是一块"竖屏"的手机界面，只是横过来了。
+   ══════════════════════════════════════════════════════════ */
+@media (hover: none) and (pointer: coarse) and (orientation: landscape) and (max-height: 500px) {
+  html,
+  body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
+  :root {
+    /* 旋转后「宽」=屏幕短边，「高」=屏幕长边；svh 认不出时退回 vh */
+    --phone-screen-width: 100vh;
+    --phone-screen-width: 100svh;
+    --phone-screen-height: 100vw;
+  }
+
+  .app-root,
+  .app-root.splash-root {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vh;
+    width: 100svh;
+    height: 100vw;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    /* 先按自身高度上移一整屏，再绕左上角顺时针转 90°，正好铺满横屏视口 */
+    transform: rotate(90deg) translateY(-100%);
+    transform-origin: top left;
+  }
+
+  .phone-shell-wrap,
+  .splash-shell-wrap {
+    margin-top: 0;
+  }
 }

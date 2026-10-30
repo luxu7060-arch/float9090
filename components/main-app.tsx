@@ -15,7 +15,13 @@ import { hydrateKvDb, isKvHydrated } from "@/lib/kv-db";
 import { getThemeAssetMap, readThemeProfile } from "@/lib/theme-storage";
 import { resolveActiveIconSkins, type ThemeProfile } from "@/lib/theme-types";
 import { hasPendingMcpOAuthCallback } from "@/lib/tool-executor";
-import { shouldRequestPwaFullscreen } from "@/lib/pwa-display-mode";
+import {
+  isCoarsePointerDevice,
+  isShellWebView,
+  lockPortraitOrientation,
+  shouldRequestPwaFullscreen,
+  unlockOrientation,
+} from "@/lib/pwa-display-mode";
 
 const TEXT = {
   loading: "\u52A0\u8F7D\u4E2D...",
@@ -285,21 +291,52 @@ export function MainApp() {
     })();
 
     // 安卓全屏兜底。是否请求全屏在每次点击时读取，设置切换后无需重载。
-    const isMobile = window.matchMedia("(hover: none) and (pointer: coarse)").matches;
-    if (!isMobile) return () => {
-      cancelled = true;
-    };
+    // 用「粗指针」而不是宽度判断：横屏时视口会超过 500px，旧写法会让全屏逻辑整个失效。
+    const isMobile = isCoarsePointerDevice();
+    // 安卓壳（APK）本身就是原生全屏，网页这边再请求全屏没有意义，调了也是白调。
+    if (!isMobile || isShellWebView()) {
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    // 防「全屏提示一直跳」：浏览器每成功进一次全屏都会弹一条提示，旧代码是
+    // 每次点击都无条件重进（用户滑出全屏后，随手一点又弹一次），所以看着像"一直跳"。
+    // 现在：用户主动退出后静默 30 秒不再自动拉回，两次尝试之间至少隔 2 秒。
+    const RETRY_COOLDOWN_MS = 30_000;
+    const MIN_GAP_MS = 2_000;
+    let lastAttemptAt = 0;
+    let lastExitAt = 0;
 
     function tryFullscreen() {
       if (!shouldRequestPwaFullscreen()) return;
-      const doc = document.documentElement;
       if (document.fullscreenElement) return;
-      doc.requestFullscreen?.().catch(() => { });
+      const now = Date.now();
+      if (now - lastExitAt < RETRY_COOLDOWN_MS) return;
+      if (now - lastAttemptAt < MIN_GAP_MS) return;
+      lastAttemptAt = now;
+      document.documentElement.requestFullscreen?.()
+        .then(() => lockPortraitOrientation())
+        .catch(() => { });
     }
+
+    // 进了全屏就顺手把方向钉成竖屏（Chrome 只在全屏下允许锁方向）；
+    // 退出全屏则解开方向锁并开始静默计时。
+    function handleFullscreenChange() {
+      if (document.fullscreenElement) {
+        void lockPortraitOrientation();
+      } else {
+        lastExitAt = Date.now();
+        unlockOrientation();
+      }
+    }
+
     document.addEventListener("click", tryFullscreen);
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
     return () => {
       cancelled = true;
       document.removeEventListener("click", tryFullscreen);
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
     };
   }, [initAttempt]);
 
