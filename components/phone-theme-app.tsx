@@ -21,6 +21,7 @@ import { normalizeThemeProfile, resolveActiveIconSkins, DEFAULT_THEME_PROFILE, t
 import type { DesktopIconId, IconId } from "@/lib/desktop-config";
 import { DOCK_DEFAULT, PAGE_1_DEFAULT, PAGE_2_DEFAULT, PAGE_3_DEFAULT, ICONS } from "@/lib/desktop-config";
 import type { DesktopFolderMap, DesktopIconLayout } from "@/lib/desktop-layout-storage";
+import { BUILTIN_ICON_SEED_TARGETS } from "@/lib/desktop-layout-storage";
 import { CUSTOM_APPS_UPDATED_EVENT, loadInstalledCustomApps } from "@/lib/custom-app-storage";
 import { toCustomAppIconId, type InstalledCustomApp } from "@/lib/custom-app-types";
 import { PageShell } from "@/components/ui/page-shell";
@@ -1092,7 +1093,17 @@ function GlobalCSSPage({
 
 // 三页桌面 + DOCK 的默认图标全收进来。漏了第三页时，筑境/工坊/资源集市/独家特调
 // 这四个图标在外观里根本没有格子，换不了皮肤。
-const BUILTIN_ICON_SKIN_IDS: IconId[] = [...PAGE_1_DEFAULT, ...PAGE_2_DEFAULT, ...PAGE_3_DEFAULT, ...DOCK_DEFAULT];
+//
+// ★ 后续上线的内置 App（如「导演室」）不在 PAGE_x_DEFAULT 里，它们是
+//   desktop-layout-storage 的 BUILTIN_ICON_SEED_TARGETS 动态补位到桌面上的。
+//   所以这里必须把那一份也并进来，否则桌面上看得见、图标页里换不了。
+const BUILTIN_ICON_SKIN_IDS: IconId[] = [
+  ...PAGE_1_DEFAULT,
+  ...PAGE_2_DEFAULT,
+  ...PAGE_3_DEFAULT,
+  ...DOCK_DEFAULT,
+  ...BUILTIN_ICON_SEED_TARGETS.filter((id) => !PAGE_1_DEFAULT.includes(id) && !PAGE_2_DEFAULT.includes(id) && !PAGE_3_DEFAULT.includes(id) && !DOCK_DEFAULT.includes(id)),
+];
 
 type IconSkinItem = {
   id: DesktopIconId;

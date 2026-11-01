@@ -6,41 +6,41 @@ type IconGlyphProps = {
 };
 
 // 小黑猫贴纸图标映射表
-const CAT_ICON_MAP: Partial<Record<IconId, string>> = {
-  chat: "/icons/cat_chat.png",
-  group_chat: "/icons/cat_chat.png",
-  diary: "/icons/cat_diary.png",
-  music: "/icons/cat_music.png",
-  calendar: "/icons/cat_calendar.png",
-  checkphone: "/icons/cat_checkphone.png",
-  shopping: "/icons/cat_shopping.png",
-  reading: "/icons/cat_reading.png",
-  mixology: "/icons/cat_cocktail.png",
-  settings: "/icons/cat_settings.png",
-  theme: "/icons/cat_theme.png",
-  characters: "/icons/cat_profile.png",
-  resources: "/icons/cat_settings.png",
-  resource_hub: "/icons/cat_market.png",
-  cocreate: "/icons/cat_feather.png",
-  game: "/icons/cat_game.png",
-  appmarket: "/icons/cat_market.png",
-  xiaohongshu: "/icons/cat_redbook.png",
-  dwelling: "/icons/cat_dwelling.png",
-  story: "/icons/cat_story.png",
-  director: "/icons/cat_story.png",
-  interview_magazine: "/icons/cat_diary.png",
-  moments: "/icons/cat_camera.png",
-  worldbuilder: "/icons/sample_black_cat.png",
-  qa: "/icons/cat_settings.png",
-  realitybridge: "/icons/sample_black_cat.png",
-  mapmode: "/icons/cat_story.png",
-  vnmode: "/icons/cat_story.png",
-  vnplay: "/icons/cat_music.png",
-  vnchapters: "/icons/cat_reading.png",
+const ICON_MAP: Partial<Record<IconId, string>> = {
+  chat: "/icons/chat.png",
+  group_chat: "/icons/chat.png",
+  diary: "/icons/diary.png",
+  music: "/icons/music.png",
+  calendar: "/icons/calendar.png",
+  checkphone: "/icons/checkphone.png",
+  shopping: "/icons/shopping.png",
+  reading: "/icons/reading.png",
+  mixology: "/icons/special_blend.png",
+  settings: "/icons/settings.png",
+  theme: "/icons/theme.png",
+  characters: "/icons/character.png",
+  resources: "/icons/settings.png",
+  resource_hub: "/icons/resource_market.png",
+  cocreate: "/icons/co_creation.png",
+  game: "/icons/game.png",
+  appmarket: "/icons/app_store.png",
+  xiaohongshu: "/icons/xiaohongshu.png",
+  dwelling: "/icons/sanctuary.png",
+  story: "/icons/story.png",
+  director: "/icons/story.png",
+  interview_magazine: "/icons/present.png",
+  moments: "/icons/camera.png",
+  worldbuilder: "/icons/world_building.png",
+  qa: "/icons/settings.png",
+  realitybridge: "/icons/ios_bridge.png",
+  mapmode: "/icons/story.png",
+  vnmode: "/icons/story.png",
+  vnplay: "/icons/music.png",
+  vnchapters: "/icons/reading.png",
 };
 
 export function IconGlyph({ id, className }: IconGlyphProps) {
-  const catSrc = CAT_ICON_MAP[id] || "/icons/sample_black_cat.png";
+  const catSrc = ICON_MAP[id] || "/icons/default_icon.png";
 
   return (
     <img

@@ -248,7 +248,9 @@ export type DesktopFolderMap = Record<string, DesktopFolder>;
  * 老用户桌面布局是存下来的，新增的内置图标不会自己出现。
  * 这里给「新上线的内置图标」找一个空位补上（只补一次，用户删掉后不会再回来）。
  */
-const BUILTIN_ICON_SEED_TARGETS: IconId[] = ["director"];
+// ⚠️ 这里新增的内置图标，除了要在桌面上补位，还必须能在「外观 → 图标」里换皮肤。
+// 图标页的白名单会直接读取这个数组（phone-theme-app.tsx）。
+export const BUILTIN_ICON_SEED_TARGETS: IconId[] = ["director"];
 
 export function seedNewBuiltinIcons(
   layout: DesktopIconLayout,
