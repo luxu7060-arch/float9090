@@ -1958,7 +1958,7 @@ html body .dock .dock-item {
    .app-root 顺时针旋转 90°，并让设计画布的宽高跟着对调 ——
    用户看到的永远是一块"竖屏"的手机界面，只是横过来了。
    ══════════════════════════════════════════════════════════ */
-@media (hover: none) and (pointer: coarse) and (orientation: landscape) and (max-height: 500px) {
+@media (hover: none) and (pointer: coarse) and (max-height: 500px) and (min-aspect-ratio: 1/1) {
   html,
   body {
     width: 100%;
