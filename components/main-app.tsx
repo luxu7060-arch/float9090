@@ -12,7 +12,7 @@ import { OfflinePushRevampAnnouncement } from "./offline-push-revamp-announcemen
 import { SplashAnimation } from "./splash-animation";
 import { MusicProvider } from "@/lib/music-context";
 import { hydrateKvDb, isKvHydrated } from "@/lib/kv-db";
-import { getThemeAssetMap, readThemeProfile } from "@/lib/theme-storage";
+import { getThemeAssetMap, readThemeProfile, seedDefaultWallpaperIfNeeded } from "@/lib/theme-storage";
 import { resolveActiveIconSkins, type ThemeProfile } from "@/lib/theme-types";
 import { hasPendingMcpOAuthCallback } from "@/lib/tool-executor";
 import {
@@ -243,6 +243,7 @@ function preloadImageDataUrl(url: string): Promise<void> {
 }
 
 async function prepareDesktopThemeForFirstPaint(): Promise<PreparedDesktopTheme> {
+  await seedDefaultWallpaperIfNeeded();
   const profile = readThemeProfile();
   const assetIds = collectFirstPaintThemeAssetIds(profile);
   const assets = assetIds.length ? await getThemeAssetMap(assetIds) : {};

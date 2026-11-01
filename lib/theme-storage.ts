@@ -357,3 +357,35 @@ export function collectThemeAssetIds(profile: ThemeProfile): string[] {
     ...iconSchemeIds,
   ].filter(Boolean);
 }
+
+// ── 默认壁纸预加载 ────────────────────────────────
+const DEFAULT_WALLPAPER_CANDIDATES = [
+  "pink_lavender_cat_wallpaper.png",
+];
+
+export async function seedDefaultWallpaperIfNeeded(): Promise<ThemeProfile | null> {
+  if (typeof window === "undefined") return null;
+  const profile = readThemeProfile();
+  if (profile.wallpaperAssetId) return null;
+
+  for (const fileName of DEFAULT_WALLPAPER_CANDIDATES) {
+    try {
+      const res = await fetch(`/wallpapers/${fileName}`);
+      if (!res.ok) continue;
+      const blob = await res.blob();
+      if (!blob.type.startsWith("image/")) continue;
+      const assetId = await saveThemeAssetFromBlob(blob, "wallpaper", `wallpaper_default_${fileName.replace(/\.\w+$/, "")}`);
+      const next = normalizeThemeProfile({
+        ...profile,
+        wallpaperAssetId: assetId,
+        wallpaperLibrary: [assetId, ...profile.wallpaperLibrary],
+      });
+      writeThemeProfile(next);
+      console.info(`[Theme] 默认壁纸已加载: ${fileName} → ${assetId}`);
+      return next;
+    } catch (err) {
+      console.warn(`[Theme] 默认壁纸加载失败 ${fileName}:`, err);
+    }
+  }
+  return null;
+}
